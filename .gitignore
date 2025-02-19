@@ -1,6 +1,3 @@
-# Ignore MATLAB generated resource files
-resources/**/*.xml
-
 *.asv
 *.m~
 *.mlx~
