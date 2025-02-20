@@ -1,3 +1,6 @@
 *.asv
 *.m~
 *.mlx~
+
+TestReport.html
+scratchpad.m
