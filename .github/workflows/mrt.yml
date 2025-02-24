@@ -1,0 +1,66 @@
+name: Trigger AWS Web Service
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  call-aws-service:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install jq
+      run: sudo apt-get install -y jq
+
+    - name: Trigger AWS web service
+      env:
+        SERVICE_URL: ${{ secrets.AWS_SERVICE_URL }}
+        TIMEOUT: 600
+      run: |
+        # Create a JSON payload for the web service request
+        JSON_PAYLOAD=$(cat <<EOF
+        {
+          "mwtype": "multireleaseservice/Execute",
+          "packages": [""],
+          "releases": ["24b"],
+          "commands": [
+            "import matlab.unittest.TestSuite",
+            "import matlab.unittest.TestRunner",
+            "import matlab.unittest.plugins.TestReportPlugin",
+            "repo = gitclone(\"https://github.com/hemdanw/SimpleProject\");",
+            "disp(repo);",
+            "project = openProject(fullfile(pwd, \"SimpleProject\", \"SimpleProject.prj\"));",
+            "addpath repo.WorkingFolder",
+            "suite = TestSuite.fromFolder(fullfile(repo.WorkingFolder, \"tests\"));",
+            "runner = TestRunner.withTextOutput;",
+            "reportFile = 'TestReport.html';",
+            "plugin = TestReportPlugin.producingHTML(reportFile, 'IncludingPassingDiagnostics', true, 'IncludingCommandWindowText', true, 'LoggingLevel', matlab.unittest.Verbosity.Verbose);",
+            "runner.addPlugin(plugin);",
+            "results = runner.run(suite);",
+            "clear ans repo"
+          ],
+          "toolboxes": ["MATLAB", "SIMULINK"]
+        }
+        EOF
+        )
+
+        # Send the HTTP POST request and capture the response
+        RESPONSE=$(curl -s -X POST "$SERVICE_URL" \
+          -H "Content-Type: application/json" \
+          -d "$JSON_PAYLOAD" \
+          --max-time "$TIMEOUT")
+
+        # Extract the status from the response using jq
+        STATUS=$(echo "$RESPONSE" | jq -r '.status')
+
+        # Check if the status is 200
+        if [ "$STATUS" -eq 200 ]; then
+          echo "Tests passed successfully."
+        else
+          echo "Tests failed or encountered an error. Status: $STATUS"
+          exit 1
+        fi
