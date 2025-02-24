@@ -1,3 +1,3 @@
 function result = addNumbers(a, b)
-    result = a + b + 1; % bug
+    result = a + b;
 end
